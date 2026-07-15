@@ -1,0 +1,41 @@
+# Ambiente virtual
+.venv/
+venv/
+env/
+
+# Banco de dados (não versionar dados reais/sensíveis)
+oficina.db
+*.db
+backups/
+
+# Cache Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Configurações de IDE
+.vscode/
+.idea/
+
+# Testes
+.pytest_cache/
+
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+# Build do executável
+build/
+dist/
+*.spec
+
+# Relatórios gerados
+database/relatorios/*.pdf
+
+# Sobras de tentativa de reorganização (MVC não finalizado)
+controllers/
+models/
+views/clientes/formulário_cliente.py
+views/clientes/tabela_clientes.py
