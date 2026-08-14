@@ -1,156 +1,61 @@
-// Bootstrap: monta o layout, cuida da navegação (hash) e registra o service worker.
-window.App = window.App || {};
-
-(function () {
-  const el = App.ui.el;
-
-  const NAV = [
-    { route: "dashboard", ic: "📊", label: "Painel" },
-    { route: "clientes", ic: "👤", label: "Clientes" },
-    { route: "veiculos", ic: "🚗", label: "Veículos" },
-    { route: "ordens", ic: "🧾", label: "Ordens de Serviço" },
-    { route: "agenda", ic: "📅", label: "Agenda" },
-    { route: "estoque", ic: "📦", label: "Estoque" },
-    { route: "financeiro", ic: "💰", label: "Financeiro" },
-    { route: "fornecedores", ic: "🏭", label: "Fornecedores" },
-    { route: "usuarios", ic: "🔑", label: "Usuários", adminOnly: true },
-    { route: "logs", ic: "📜", label: "Auditoria", adminOnly: true }
-  ];
-
-  let deferredPrompt = null;
-
-  function rotaAtual() {
-    return location.hash.replace(/^#\/?/, "") || "dashboard";
+window.App=window.App||{};App.views=App.views||{};
+(function(){
+ const el=App.ui.el,icon=App.ui.icon;
+ const NAV=[
+  {route:"dashboard",label:"Dashboard",ic:"dashboard",group:"PRINCIPAL"},
+  {route:"patio",label:"Pátio Digital",ic:"car",group:"OPERAÇÃO"},
+  {route:"ordens",label:"Ordens de Serviço",ic:"clipboard",group:"OPERAÇÃO"},
+  {route:"checklists",label:"Checklists",ic:"check",group:"OPERAÇÃO"},
+  {route:"mechanic",label:"Meu Trabalho",ic:"wrench",group:"OPERAÇÃO",mechanic:true},
+  {route:"clientes",label:"Clientes",ic:"users",group:"GESTÃO"},
+  {route:"veiculos",label:"Veículos",ic:"car",group:"GESTÃO"},
+  {route:"agenda",label:"Agenda",ic:"calendar",group:"GESTÃO"},
+  {route:"financeiro",label:"Financeiro",ic:"money",group:"GESTÃO"},
+  {route:"estoque",label:"Estoque",ic:"box",group:"GESTÃO"},
+  {route:"fornecedores",label:"Fornecedores",ic:"truck",group:"GESTÃO"},
+  {route:"relatorios",label:"Relatórios",ic:"report",group:"RELATÓRIOS"},
+  {route:"indicadores",label:"Indicadores",ic:"chart",group:"RELATÓRIOS"},
+  {route:"logs",label:"Auditoria",ic:"report",group:"RELATÓRIOS",adminOnly:true},
+  {route:"usuarios",label:"Usuários",ic:"users",group:"CONFIGURAÇÕES",adminOnly:true},
+  {route:"configuracoes",label:"Configurações",ic:"settings",group:"CONFIGURAÇÕES"},
+  {route:"central",label:"Central de Operações",ic:"zap",group:"CONFIGURAÇÕES"}
+ ];
+ let deferredPrompt=null, shell=null;
+ const route=()=>location.hash.replace(/^#\/?/,"")||"dashboard";
+ const routeBase=()=>route().split("/")[0];
+ function start(){const root=document.getElementById("app");if(!App.auth.atual()){App.views.login.render(root,start);return;}renderShell(root);}
+ function renderShell(root){const session=App.auth.atual();const allowed=n=>!n.adminOnly||App.auth.ehAdmin();const nav= NAV.filter(allowed).filter(n=>!n.mechanic||session.nivel==="mecanico"||App.auth.ehAdmin());
+  const sidebar=el("aside",{class:"sidebar"});sidebar.append(el("div",{class:"brand"},[el("img",{class:"logo-image",src:"./icons/autocontrol.svg",alt:"AutoControl"}),el("div",{},[el("strong",{},["AUTO",el("span",{},"CONTROL")]),el("small",{},"GESTÃO DE OFICINAS")])]));
+  const navWrap=el("nav",{class:"nav"});let lastGroup="";nav.forEach(n=>{if(n.group!==lastGroup){navWrap.append(el("div",{class:"nav-group"},n.group));lastGroup=n.group;}const a=el("a",{href:`#/${n.route}`,class:"nav-link","data-route":n.route},[el("span",{class:"nav-icon"},icon(n.ic)),el("span",{},n.label)]);navWrap.append(a);});sidebar.append(navWrap);
+  const profile=el("div",{class:"profile"},[el("div",{class:"avatar"},App.ui.initials(session.nome)),el("div",{class:"profile-info"},[el("strong",{},session.nome),el("small",{},session.nivel)]),App.ui.iconButton("logout","Sair",()=>{App.auth.logout();location.hash="#/dashboard";start();},"ghost")]);sidebar.append(profile);
+  const overlay=el("div",{class:"overlay",onclick:closeMenu});
+  const search=el("input",{class:"top-search-input",type:"search",placeholder:"Buscar no AutoControl...","aria-label":"Buscar no AutoControl"});search.addEventListener("keydown",e=>{if(e.key==="Enter"){const q=search.value.trim();if(q){location.hash="#/clientes";setTimeout(()=>{const target=document.querySelector(".filter-input");if(target){target.value=q;target.dispatchEvent(new Event("input",{bubbles:true}));target.focus();}},80);}}});
+  const notifCount=()=>{const low=App.db.all("estoque").filter(x=>Number(x.quantidade)<=Number(x.quantidade_minima)).length;const late=App.db.all("agendamentos").filter(x=>x.status==="Agendado"&&x.data<new Date().toISOString().slice(0,10)).length;const open=App.db.all("ordens").filter(x=>x.status!=="Finalizada"&&Number(x.progresso||0)<25).length;return low+late+open;};
+  const notification=el("button",{class:"notification",title:"Notificações",onclick:()=>App.views.central?.notificacoes?.()},[icon("bell"),el("b",{},String(notifCount()))]);
+  const connection=el("button",{class:"connection-status",title:"Status da conexão",onclick:()=>App.ui.toast(navigator.onLine?"Online — o aplicativo está conectado.":"Offline — os dados locais continuam disponíveis.",navigator.onLine?"ok":"error")},[el("i",{}),el("span",{},navigator.onLine?"Online":"Offline")]);
+  const top=el("header",{class:"topbar"},[el("button",{class:"mobile-menu",onclick:openMenu,"aria-label":"Abrir menu"},icon("menu")),el("div",{class:"top-search"},[icon("search"),search,el("kbd",{},"Ctrl K")]),el("div",{class:"top-actions"},[connection,App.ui.iconButton("plus","Nova OS",()=>location.hash="#/ordens","primary"),notification,el("button",{class:"notification",title:"Agenda",onclick:()=>location.hash="#/agenda"},icon("calendar")),el("div",{class:"top-user"},[el("div",{class:"avatar small"},App.ui.initials(session.nome)),el("div",{},[el("strong",{},session.nome),el("small",{},session.nivel)])])])]);
+  const view=el("main",{class:"content"});const mobileNav=el("nav",{class:"bottom-nav"},nav.slice(0,4).map(n=>el("a",{href:`#/${n.route}`,"data-route":n.route},[icon(n.ic),el("span",{},n.label.split(" ")[0])] )));mobileNav.append(el("a",{href:"#/ordens",class:"bottom-add"},icon("plus")));root.innerHTML="";shell=el("div",{class:"shell"},[sidebar,el("div",{class:"main"},[top,view]),overlay,mobileNav]);root.append(shell);
+  function openMenu(){sidebar.classList.add("open");overlay.classList.add("show");}function closeMenu(){sidebar.classList.remove("open");overlay.classList.remove("show");}
+  function renderRoute(){const r=route(),base=routeBase();const def=NAV.find(n=>n.route===base);if(def?.adminOnly&&!App.auth.ehAdmin()){App.ui.toast("Acesso restrito a administradores.","error");location.hash="#/dashboard";return;}closeMenu();document.querySelectorAll("[data-route]").forEach(a=>a.classList.toggle("active",a.dataset.route===base));App.ui.clear(view);
+    if(r.startsWith("os/")){App.views.osDetail.render(view,Number(r.split("/")[1]));return;}
+    if(base==="dashboard"){App.views.dashboard.render(view);return;}if(base==="patio"){App.views.workshop.render(view);return;}if(base==="mechanic"){App.views.mechanic.render(view);return;}if(App.entities[base]){App.crud(App.entities[base]).render(view);return;}if(base==="relatorios"){renderReports(view);return;}if(base==="indicadores"){renderIndicators(view);return;}if(base==="configuracoes"){renderSettings(view);return;}if(base==="central"){App.views.central.render(view);return;}location.hash="#/dashboard";
   }
-
-  function start() {
-    const root = document.getElementById("app");
-    if (!App.auth.atual()) {
-      App.views.login.render(root, start);
-      return;
-    }
-    renderShell(root);
-  }
-
-  function renderShell(root) {
-    const admin = App.auth.ehAdmin();
-    const sessao = App.auth.atual();
-
-    const links = {};
-    const navEls = NAV.filter((n) => !n.adminOnly || admin).map((n) => {
-      const a = el("a", { href: "#/" + n.route }, [el("span", { class: "ic" }, n.ic), n.label]);
-      links[n.route] = a;
-      return a;
-    });
-
-    const sidebar = el("aside", { class: "sidebar" }, [
-      el("div", { class: "brand" }, [
-        el("img", { class: "logo", src: "./icons/icon-192.png", alt: "" }),
-        el("div", {}, ["Auto", el("span", {}, "Control")])
-      ]),
-      el("nav", { class: "nav" }, navEls),
-      el("div", { class: "sidebar-foot" }, [
-        el("button", { class: "btn ghost small", style: "width:100%", onclick: zerarDados }, "Zerar dados")
-      ])
-    ]);
-
-    const overlay = el("div", { class: "overlay", onclick: () => fecharMenu() });
-
-    const btnInstalar = el("button", { class: "btn small", style: "display:none", onclick: instalar }, "Instalar");
-    if (deferredPrompt) btnInstalar.style.display = "";
-
-    const titulo = el("h1", {}, "Painel");
-    const topbar = el("header", { class: "topbar" }, [
-      el("button", { class: "hamburger", onclick: () => abrirMenu(), "aria-label": "Menu" }, "☰"),
-      titulo,
-      btnInstalar,
-      el("div", { class: "user" }, [
-        el("b", {}, sessao ? sessao.nome : ""),
-        sessao ? sessao.nivel : ""
-      ]),
-      el("button", { class: "btn secondary small", onclick: sair }, "Sair")
-    ]);
-
-    const view = el("div", { class: "content" });
-    const main = el("main", { class: "main" }, [topbar, view]);
-
-    App.ui.clear(root);
-    root.appendChild(el("div", { class: "shell" }, [sidebar, main, overlay]));
-
-    function abrirMenu() { sidebar.classList.add("open"); overlay.classList.add("show"); }
-    function fecharMenu() { sidebar.classList.remove("open"); overlay.classList.remove("show"); }
-
-    // expõe o botão de instalar caso o evento chegue depois do render
-    window.__mostrarInstalar = () => { btnInstalar.style.display = ""; };
-
-    function renderRoute() {
-      const route = rotaAtual();
-      const navDef = NAV.find((n) => n.route === route);
-      const entity = App.entities[route];
-      const precisaAdmin = (navDef && navDef.adminOnly) || (entity && entity.adminOnly);
-      if (precisaAdmin && !App.auth.ehAdmin()) {
-        App.ui.toast("Acesso restrito a administradores.", "error");
-        location.hash = "#/dashboard";
-        return;
-      }
-
-      Object.keys(links).forEach((k) => links[k].classList.toggle("active", k === route));
-      fecharMenu();
-      App.ui.clear(view);
-
-      if (route === "dashboard") { titulo.textContent = "Painel"; App.views.dashboard.render(view); return; }
-      if (entity) { titulo.textContent = entity.titulo; App.crud(entity).render(view); return; }
-      location.hash = "#/dashboard";
-    }
-
-    window.onhashchange = renderRoute;
-    renderRoute();
-  }
-
-  function sair() {
-    App.auth.logout();
-    location.hash = "#/dashboard";
-    start();
-  }
-
-  function zerarDados() {
-    App.ui.confirmar("Isto apaga todos os dados deste aparelho e recria os dados de exemplo. Continuar?", "Zerar")
-      .then((ok) => {
-        if (!ok) return;
-        App.db.reset();
-        App.seed.ensure();
-        App.auth.logout();
-        App.ui.toast("Dados reiniciados.", "ok");
-        start();
-      });
-  }
-
-  function instalar() {
-    if (!deferredPrompt) return;
-    deferredPrompt.prompt();
-    deferredPrompt.userChoice.finally(() => { deferredPrompt = null; });
-  }
-
-  window.addEventListener("beforeinstallprompt", (e) => {
-    e.preventDefault();
-    deferredPrompt = e;
-    if (window.__mostrarInstalar) window.__mostrarInstalar();
-  });
-
-  function registrarSW() {
-    if ("serviceWorker" in navigator) {
-      window.addEventListener("load", () => {
-        navigator.serviceWorker.register("./sw.js").catch(() => {});
-      });
-    }
-  }
-
-  function boot() {
-    App.seed.ensure();
-    registrarSW();
-    start();
-  }
-
-  if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
-  else boot();
+  window.onhashchange=renderRoute;renderRoute();window.__renderRoute=renderRoute;
+ }
+ function simplePanel(title,desc,children){return el("div",{class:"panel"},[el("div",{class:"panel-head"},[el("div",{},[el("strong",{},title),el("span",{},desc)]),]),...children]);}
+ function renderReports(c){const fin=App.db.all("financeiro"),os=App.db.all("ordens"),stock=App.db.all("estoque");const rec=fin.filter(x=>x.tipo==="Receita").reduce((a,x)=>a+Number(x.valor||0),0),des=fin.filter(x=>x.tipo!=="Receita").reduce((a,x)=>a+Number(x.valor||0),0);c.append(el("div",{class:"page-head"},[el("div",{},[el("span",{class:"eyebrow"},"RELATÓRIOS"),el("h1",{},"Relatórios"),el("p",{},"Exporte e acompanhe os principais números da oficina.")]),el("div",{class:"page-actions"},[App.ui.button("Exportar financeiro",()=>exportCollection("financeiro"),{icon:"download"}),App.ui.button("Exportar OS",()=>exportCollection("ordens"),{variant:"secondary",icon:"download"})])]),el("div",{class:"summary-grid"},[App.helpers.card("Receitas",App.ui.money(rec),"green"),App.helpers.card("Despesas",App.ui.money(des),"red"),App.helpers.card("OS concluídas",os.filter(x=>x.status==="Finalizada").length,"blue"),App.helpers.card("Itens críticos",stock.filter(x=>Number(x.quantidade)<=Number(x.quantidade_minima)).length,"purple")]),simplePanel("Exportação rápida","Arquivos CSV compatíveis com Excel e planilhas.",[el("div",{class:"export-grid"},[exportBtn("Clientes","clientes"),exportBtn("Veículos","veiculos"),exportBtn("Agenda","agendamentos"),exportBtn("Estoque","estoque")]) ]));}
+ function exportBtn(label,coll){return el("button",{class:"export-card",onclick:()=>exportCollection(coll)},[icon(coll==="estoque"?"box":coll==="agendamentos"?"calendar":coll==="veiculos"?"car":"users"),el("span",{},label),icon("download")]);}
+ function exportCollection(coll){const rows=App.db.all(coll);if(!rows.length){App.ui.toast("Não há dados para exportar.","error");return;}const keys=Object.keys(rows[0]).filter(k=>k!=="_seq");const csv="\uFEFF"+[keys,...rows.map(r=>keys.map(k=>String(r[k]??"").replace(/"/g,'""')))].map(a=>a.map(v=>`"${v}"`).join(";")).join("\r\n");App.ui.baixar(`${coll}.csv`,csv,"text/csv;charset=utf-8");App.ui.toast("Relatório exportado.","ok");}
+ function renderIndicators(c){const os=App.db.all("ordens"),fin=App.db.all("financeiro"),clients=App.db.all("clientes"),avg=os.length?os.reduce((a,x)=>a+Number(x.valor_total||0),0)/os.length:0;const data=[App.helpers.card("Ticket médio",App.ui.money(avg),"blue"),App.helpers.card("Clientes cadastrados",clients.length,"purple"),App.helpers.card("Taxa de conclusão",`${os.length?Math.round(os.filter(x=>x.status==="Finalizada").length/os.length*100):0}%`,"green"),App.helpers.card("Margem",`${fin.length?Math.round(fin.filter(x=>x.tipo==="Receita").reduce((a,x)=>a+Number(x.valor||0),0)/Math.max(1,fin.reduce((a,x)=>a+Number(x.valor||0),0))*100):0}%`,"blue")];c.append(el("div",{class:"page-head"},[el("div",{},[el("span",{class:"eyebrow"},"RELATÓRIOS"),el("h1",{},"Indicadores"),el("p",{},"KPIs para acompanhar produtividade e resultado.")])]),el("div",{class:"summary-grid"},data),simplePanel("Produtividade","Visão operacional baseada nos dados locais.",[el("div",{class:"indicator-list"},[ind("Ordens em aberto",os.filter(x=>x.status!=="Finalizada").length),ind("Ordens em andamento",os.filter(x=>x.status==="Em andamento").length),ind("Ordens finalizadas",os.filter(x=>x.status==="Finalizada").length),ind("Receita registrada",App.ui.money(fin.filter(x=>x.tipo==="Receita").reduce((a,x)=>a+Number(x.valor||0),0)))]) ]));}
+ function ind(a,b){return el("div",{class:"indicator-line"},[el("span",{},a),el("strong",{},b)]);}
+ function renderSettings(c){c.append(el("div",{class:"page-head"},[el("div",{},[el("span",{class:"eyebrow"},"CONFIGURAÇÕES"),el("h1",{},"Configurações"),el("p",{},"Preferências do aplicativo e manutenção local.")])]),simplePanel("Aplicativo","Configurações que funcionam sem servidor.",[el("div",{class:"settings-list"},[setting("Modo compacto","Reduz espaçamentos em telas pequenas",()=>document.body.classList.toggle("compact-mode")),setting("Recarregar dados de exemplo","Não apaga seus dados atuais.",()=>{localStorage.removeItem("autocontrol:seeded");App.seed.ensure();App.ui.toast("Dados de exemplo já disponíveis; seus registros foram preservados.","ok");}),setting("Limpar dados locais","Apaga somente os dados do AutoControl deste aparelho.",()=>App.ui.confirmar("Isso apagará os dados locais. Continuar?","Apagar tudo").then(ok=>{if(ok){App.db.reset();App.seed.ensure();App.auth.logout();location.hash="#/dashboard";location.reload();}}))]) ]));}
+ function setting(t,d,action){return el("div",{class:"setting-row"},[el("div",{},[el("strong",{},t),el("small",{},d)]),App.ui.button("Executar",action,{variant:"secondary",small:true})]);}
+ window.addEventListener("beforeinstallprompt",e=>{e.preventDefault();deferredPrompt=e;App.pwa.installAvailable=true;});
+  App.pwa={installAvailable:false,install:async()=>{if(!deferredPrompt){App.ui.toast("A instalação será oferecida pelo navegador quando estiver disponível.");return false;}deferredPrompt.prompt();const r=await deferredPrompt.userChoice;deferredPrompt=null;App.pwa.installAvailable=false;return r.outcome==="accepted";}};
+  window.addEventListener("online",()=>document.querySelectorAll(".connection-status").forEach(x=>{x.classList.remove("offline");x.querySelector("span").textContent="Online";}));
+  window.addEventListener("offline",()=>document.querySelectorAll(".connection-status").forEach(x=>{x.classList.add("offline");x.querySelector("span").textContent="Offline";}));
+ document.addEventListener("keydown",e=>{if((e.ctrlKey||e.metaKey)&&e.key.toLowerCase()==="k"){e.preventDefault();document.querySelector(".top-search-input")?.focus();}});
+ function registerSW(){if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}
+ function boot(){try{App.seed.ensure();registerSW();start();}catch(e){console.error(e);document.getElementById("app").innerHTML=`<div class="fatal"><strong>AutoControl encontrou um erro.</strong><span>${e.message||e}</span><button onclick="location.reload()">Recarregar</button></div>`;}}
+ if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
 })();

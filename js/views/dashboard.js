@@ -1,78 +1,24 @@
-// Painel inicial: números do negócio e listas rápidas.
-window.App = window.App || {};
-App.views = App.views || {};
-
-(function () {
-  const el = App.ui.el;
-
-  function hojeISO() { return new Date().toISOString().slice(0, 10); }
-
-  function render(container) {
-    const db = App.db;
-    const H = App.helpers;
-
-    const clientes = db.all("clientes");
-    const veiculos = db.all("veiculos");
-    const ordens = db.all("ordens");
-    const estoque = db.all("estoque");
-    const financeiro = db.all("financeiro");
-    const agendamentos = db.all("agendamentos");
-
-    const ordensAbertas = ordens.filter((o) => o.status !== "Finalizada");
-    let receita = 0, despesa = 0;
-    financeiro.forEach((m) => { if (m.tipo === "Receita") receita += Number(m.valor) || 0; else despesa += Number(m.valor) || 0; });
-    const saldo = receita - despesa;
-    const estoqueBaixo = estoque.filter((e) => Number(e.quantidade) <= Number(e.quantidade_minima));
-    const hoje = hojeISO();
-    const proximos = agendamentos
-      .filter((a) => String(a.data) >= hoje && a.status !== "Cancelado" && a.status !== "Concluído")
-      .sort((a, b) => String(a.data).localeCompare(String(b.data)));
-
-    const cards = el("div", { class: "cards" }, [
-      H.card("Clientes", clientes.length, "accent"),
-      H.card("Veículos", veiculos.length, "accent"),
-      H.card("OS abertas", ordensAbertas.length, ordensAbertas.length ? "warn" : "ok"),
-      H.card("Saldo", App.ui.money(saldo), saldo >= 0 ? "ok" : "danger"),
-      H.card("Estoque baixo", estoqueBaixo.length, estoqueBaixo.length ? "danger" : "ok"),
-      H.card("Agendamentos", proximos.length, "accent")
-    ]);
-
-    function painelLista(titulo, itens, render) {
-      const lista = itens.length
-        ? el("ul", { class: "list-mini" }, itens.map(render))
-        : el("div", { class: "empty" }, "Nada por aqui.");
-      return el("div", { class: "panel" }, [el("h2", {}, titulo), lista]);
-    }
-
-    const painelAgenda = painelLista("Próximos agendamentos", proximos.slice(0, 6), (a) =>
-      el("li", {}, [
-        el("span", {}, App.ui.fmtData(a.data) + (a.hora ? " " + a.hora : "") + " - " + H.clienteNome(a.cliente_id)),
-        el("span", { class: "muted" }, a.descricao || "")
-      ])
-    );
-
-    const painelEstoque = painelLista("Estoque baixo", estoqueBaixo.slice(0, 6), (p) =>
-      el("li", {}, [
-        el("span", {}, p.nome),
-        el("span", { class: "muted" }, "Qtd " + p.quantidade + " / mín " + p.quantidade_minima)
-      ])
-    );
-
-    const ultimas = ordens.slice().sort((a, b) => b.id - a.id).slice(0, 6);
-    const painelOrdens = painelLista("Últimas ordens de serviço", ultimas, (o) =>
-      el("li", {}, [
-        el("span", {}, H.clienteNome(o.cliente_id) + " - " + H.veiculoLabel(o.veiculo_id)),
-        el("span", { class: "muted" }, o.status + " - " + App.ui.money(o.valor_total))
-      ])
-    );
-
-    App.ui.clear(container);
-    container.appendChild(el("div", { class: "section-title" }, [el("h1", {}, "Painel")]));
-    container.appendChild(cards);
-    container.appendChild(painelAgenda);
-    container.appendChild(painelEstoque);
-    container.appendChild(painelOrdens);
-  }
-
-  App.views.dashboard = { render };
-})();
+window.App=window.App||{};App.views=App.views||{};
+(function(){const el=App.ui.el;const icon=App.ui.icon;
+ const today=()=>new Date().toISOString().slice(0,10);
+ function render(c){App.ui.clear(c);const db=App.db,H=App.helpers;const clients=db.all("clientes"),cars=db.all("veiculos"),os=db.all("ordens"),fin=db.all("financeiro"),stock=db.all("estoque"),agenda=db.all("agendamentos");const rec=fin.filter(x=>x.tipo==="Receita").reduce((a,x)=>a+Number(x.valor||0),0),des=fin.filter(x=>x.tipo!=="Receita").reduce((a,x)=>a+Number(x.valor||0),0),low=stock.filter(x=>Number(x.quantidade)<=Number(x.quantidade_minima)),open=os.filter(x=>x.status!=="Finalizada"),todayAg=agenda.filter(x=>x.data===today()&&x.status!=="Cancelado");
+  const head=el("div",{class:"dashboard-head"},[el("div",{},[el("span",{class:"eyebrow"},"VISÃO GERAL"),el("h1",{},`Bom dia, ${App.auth.atual()?.nome?.split(" ")[0]||"gestor"}! 👋`),el("p",{},"Aqui está o resumo operacional da sua oficina hoje.")]),el("div",{class:"date-chip"},[icon("calendar"),new Intl.DateTimeFormat("pt-BR",{dateStyle:"full"}).format(new Date())])]);
+  const kpis=el("div",{class:"kpi-grid"},[
+   kpi("Veículos no pátio",new Set(open.map(x=>Number(x.veiculo_id)).filter(Boolean)).size,"Em atendimento agora","car","blue"),kpi("Ordens de serviço",os.length,`${os.filter(x=>x.status==="Finalizada").length} finalizadas`,"clipboard","green"),kpi("Agendamentos",todayAg.length,"Hoje","calendar","purple"),kpi("Receita acumulada",App.ui.money(rec),des?`${((rec-des)/Math.max(rec,1)*100).toFixed(1)}% líquido`:"Sem despesas","money","blue")]);
+  const graph=el("div",{class:"panel chart-panel"},[el("div",{class:"panel-head"},[el("div",{},[el("strong",{},"Movimentação financeira"),el("span",{},"Últimos registros")]),el("span",{class:"mini-badge"},"Receitas × despesas")]),el("div",{class:"fake-chart"},[el("div",{class:"chart-lines"},[el("i",{}),el("i",{}),el("i",{}),el("i",{})]),el("div",{class:"line revenue"}),el("div",{class:"line expense"}),el("div",{class:"chart-legend"},[el("span",{},[el("i",{class:"dot blue"}),"Receitas"]),el("span",{},[el("i",{class:"dot red"}),"Despesas"])] )])]);
+  const finance=el("div",{class:"panel"},[el("div",{class:"panel-head"},[el("strong",{},"Resumo financeiro"),el("a",{href:"#/financeiro"},"Ver completo")]),metricRow("Receitas",App.ui.money(rec),"green","money"),metricRow("Despesas",App.ui.money(des),"red","money"),metricRow("Lucro",App.ui.money(rec-des),rec>=des?"green":"red","chart"),metricRow("Ticket médio",App.ui.money(os.length?os.reduce((a,x)=>a+Number(x.valor_total||0),0)/os.length:0),"blue","wallet")]);
+  const alerts=el("div",{class:"panel"},[el("div",{class:"panel-head"},[el("strong",{},"Alertas importantes"),el("a",{href:"#/estoque"},"Ver todos")]),alertRow(os.filter(x=>x.status!=="Finalizada"&&Number(x.progresso||0)<25).length,"OS precisam de atenção","Revisar serviços em baixa progressão","red","clock"),alertRow(low.length,"Estoque crítico",`${low.length} item(ns) abaixo do mínimo`,low.length?"yellow":"green","box"),alertRow(todayAg.length,"Atendimentos hoje",`${todayAg.length} agendamento(s)`,"blue","calendar"),alertRow(agenda.filter(x=>x.status==="Agendado"&&x.data<today()).length,"Agendamentos atrasados","Confira a agenda","red","bell")]);
+  const lower=el("div",{class:"two-col"},[el("div",{},[graph,patio(os,H)]),el("div",{},[finance,alerts,agendaPanel(todayAg,H)])]);
+  const quick=el("div",{class:"panel quick-panel"},[el("div",{class:"panel-head"},[el("strong",{},"Ações rápidas"),el("span",{},"Atalhos para o dia a dia")]),el("div",{class:"quick-grid"},[
+   quickBtn("Nova OS","#/ordens","clipboard"),quickBtn("Novo cliente","#/clientes","users"),quickBtn("Novo veículo","#/veiculos","car"),quickBtn("Agendar","#/agenda","calendar"),quickBtn("Comprar peça","#/estoque","box"),quickBtn("Financeiro","#/financeiro","money")])]);
+  c.append(head,kpis,lower,quick);
+ }
+ function kpi(label,value,sub,ic,cls){return el("div",{class:"kpi"},[el("div",{class:`kpi-icon ${cls}`},icon(ic)),el("div",{},[el("span",{},label),el("strong",{},value),el("small",{},sub)])]);}
+ function metricRow(label,val,cls,ic){return el("div",{class:"metric-row"},[el("span",{},[el("i",{class:`mini-icon ${cls}`},icon(ic)),label]),el("strong",{class:cls},val)]);}
+ function alertRow(num,title,sub,cls,ic){return el("div",{class:"alert-row"},[el("span",{class:`alert-icon ${cls}`},icon(ic)),el("div",{},[el("strong",{},`${num} ${title}`),el("small",{},sub)])]);}
+ function patio(os,H){const cols={"Aberta":[],"Em andamento":[],"Finalizada":[]};os.forEach(o=>{if(cols[o.status])cols[o.status].push(o)});return el("div",{class:"panel patio-panel"},[el("div",{class:"panel-head"},[el("div",{},[el("strong",{},"Pátio Digital"),el("span",{},"Visão geral da operação")]),el("a",{href:"#/patio"},"Abrir pátio →")]),el("div",{class:"mini-kanban"},[
+   col("Novos",cols["Aberta"],"blue",H),col("Em serviço",cols["Em andamento"],"yellow",H),col("Pronto",cols["Finalizada"],"green",H)])]);}
+ function col(title,items,cls,H){return el("div",{class:"kan-col"},[el("div",{class:"kan-title"},[el("span",{},title),el("b",{class:cls},items.length)]),...(items.slice(0,3).map(o=>el("button",{class:"kan-card",onclick:()=>location.hash=`#/os/${o.id}`},[el("strong",{},`OS #${String(o.id).padStart(4,"0")}`),el("span",{},H.veiculoLabel(o.veiculo_id)),el("small",{},H.clienteNome(o.cliente_id)),el("div",{class:"progress"},el("i",{style:`width:${Number(o.progresso||0)}%`}))])))]);}
+ function agendaPanel(items,H){return el("div",{class:"panel"},[el("div",{class:"panel-head"},[el("strong",{},"Agenda de hoje"),el("a",{href:"#/agenda"},"Ver agenda")]),items.length?items.slice(0,5).map(a=>el("div",{class:"agenda-row"},[el("b",{},a.hora||"--:--"),el("div",{},[el("strong",{},H.clienteNome(a.cliente_id)),el("small",{},a.descricao||"Atendimento")])])):el("div",{class:"empty-state compact"},"Nenhum agendamento para hoje.")]);}
+ function quickBtn(label,href,ic){return el("a",{class:"quick-btn",href},[el("span",{class:"quick-icon"},icon(ic)),el("span",{},label),icon("arrow")]);}
+ App.views.dashboard={render};})();
