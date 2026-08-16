@@ -158,7 +158,38 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
     console.log("ok  checklist e progresso da OS atualizam sem duplicar a tela");
   }
 
-  // ---- 7. com usuario cadastrado, vai para o login -----------------------
+  // ---- 7. formulario modal abre com overlay, fecha e salva ---------------
+  {
+    dom.window.location.hash = "#/clientes";
+    dom.window.__renderRoute();
+    await esperar(60);
+    const clique = (n) => n.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    const abrir = () => clique([...doc.querySelectorAll("button")].find((b) => /Novo Cliente/i.test(b.textContent)));
+    const conta = () => ({ bg: doc.querySelectorAll(".modal-bg").length, modal: doc.querySelectorAll(".modal").length });
+
+    abrir();
+    await esperar(80);
+    assert.deepStrictEqual(conta(), { bg: 1, modal: 1 }, "modal deve abrir dentro do overlay .modal-bg");
+    assert(![...doc.body.children].some((x) => x.classList.contains("modal")),
+      "o modal nao pode ser filho direto do body: sem overlay ele nao centraliza nem escurece o fundo");
+
+    clique([...doc.querySelectorAll(".modal-foot button")].find((b) => /Cancelar/i.test(b.textContent)));
+    await esperar(80);
+    assert.deepStrictEqual(conta(), { bg: 0, modal: 0 }, "Cancelar deve remover o modal do DOM");
+
+    const antes = dom.window.App.db.count("clientes");
+    abrir();
+    await esperar(80);
+    doc.querySelectorAll(".modal-body input")[0].value = "Cliente De Teste";
+    clique([...doc.querySelectorAll(".modal-foot button")].find((b) => /Salvar/i.test(b.textContent)));
+    await esperar(150);
+    assert.deepStrictEqual(conta(), { bg: 0, modal: 0 }, "Salvar deve remover o modal do DOM");
+    assert.strictEqual(dom.window.App.db.count("clientes"), antes + 1, "o cliente deveria ter sido criado");
+    assert(dom.window.App.db.all("clientes").some((c) => c.nome === "Cliente De Teste"), "com o nome informado");
+    console.log("ok  formulario modal abre com overlay, fecha em Cancelar/Salvar e persiste");
+  }
+
+  // ---- 8. com usuario cadastrado, vai para o login -----------------------
   const dump = dom.window.localStorage.getItem("autocontrol:v1");
   dom = novoDom();
   dom.window.localStorage.setItem("autocontrol:v1", dump);
