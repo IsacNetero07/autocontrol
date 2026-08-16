@@ -1,41 +1,30 @@
-# Ambiente virtual
+# --- Node / ferramentas de desenvolvimento ---
+node_modules/
+npm-debug.log*
+.env
+.env.local
+
+# --- App desktop legado (Python) ---
+# Mantido em legacy-desktop/ apenas como referência histórica.
 .venv/
 venv/
 env/
-
-# Banco de dados (não versionar dados reais/sensíveis)
-oficina.db
-*.db
-backups/
-
-# Cache Python
 __pycache__/
 *.pyc
 *.pyo
-
-# Configurações de IDE
-.vscode/
-.idea/
-
-# Testes
 .pytest_cache/
-
-# Arquivos de sistema
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
-# Build do executável
 build/
 dist/
 *.spec
 
-# Relatórios gerados
-database/relatorios/*.pdf
+# Banco e backups reais nunca vão para o repositório.
+*.db
+backups/
+legacy-desktop/database/relatorios/*.pdf
 
-# Sobras de tentativa de reorganização (MVC não finalizado)
-controllers/
-models/
-views/clientes/formulário_cliente.py
-views/clientes/tabela_clientes.py
+# --- Editores e sistema ---
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log

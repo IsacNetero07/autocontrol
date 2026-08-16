@@ -1,9 +1,9 @@
-const CACHE = "autocontrol-blue-v5";
+const CACHE = "autocontrol-blue-v6";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/styles.css",
   "./js/validation.js", "./js/db.js", "./js/auth.js", "./js/seed.js", "./js/ui.js",
   "./js/crud.js", "./js/entities.js", "./js/app.js",
-  "./js/views/login.js", "./js/views/dashboard.js", "./js/views/workshop.js",
+  "./js/views/setup.js", "./js/views/login.js", "./js/views/dashboard.js", "./js/views/workshop.js",
   "./js/views/os-detail.js", "./js/views/mechanic.js", "./js/views/central.js",
   "./icons/favicon-32.png", "./icons/apple-touch-icon.png", "./icons/icon-192.png", "./icons/icon-512.png"
 ];

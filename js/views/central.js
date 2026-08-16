@@ -26,7 +26,7 @@ window.App=window.App||{};App.views=App.views||{};
     };reader.onerror=()=>App.ui.toast('Falha ao ler o arquivo.','error');reader.readAsText(file);
   }
   function importBackup(){const input=el('input',{type:'file',accept:'.json,application/json',hidden:'true'});input.addEventListener('change',()=>{if(input.files[0])restoreBackup(input.files[0]);});document.body.append(input);input.click();setTimeout(()=>input.remove(),1000);}
-  function systemHealth(){const d=App.db.load();const tests=[];tests.push(['Banco local',!!d&&typeof d==='object']);tests.push(['Coleções',collections.every(c=>Array.isArray(d[c]))]);tests.push(['Sessão',!!App.auth.atual()]);tests.push(['PWA','serviceWorker' in navigator]);tests.push(['Conexão',navigator.onLine]);tests.push(['Dados de exemplo',!!localStorage.getItem('autocontrol:seeded')]);return tests;}
+  function systemHealth(){const d=App.db.load();const tests=[];tests.push(['Banco local',!!d&&typeof d==='object']);tests.push(['Coleções',collections.every(c=>Array.isArray(d[c]))]);tests.push(['Sessão',!!App.auth.atual()]);tests.push(['PWA','serviceWorker' in navigator]);tests.push(['Criptografia de senha',App.auth.criptoForte()]);tests.push(['Conexão',navigator.onLine]);tests.push(['Dados de exemplo',!!localStorage.getItem('autocontrol:seeded')]);return tests;}
   function notifications(){
     const low=App.db.all('estoque').filter(x=>Number(x.quantidade)<=Number(x.quantidade_minima));
     const late=App.db.all('agendamentos').filter(x=>x.status==='Agendado'&&x.data<today());

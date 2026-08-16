@@ -55,7 +55,14 @@ window.App=window.App||{};
       else {input=el("input",{name:c.key,type:c.type||"text",placeholder:c.placeholder||"",min:c.min,max:c.max,step:c.step});input.value=valores[c.key]==null?"":String(valores[c.key]);}
       if(c.required)input.required=true; wrap.append(input); if(c.help)wrap.append(el("small",{class:"field-help"},c.help));const er=el("small",{class:"field-error"});wrap.append(er);errors[c.key]=er;inputs[c.key]=input;body.append(wrap);});
     form.append(body,el("div",{class:"modal-foot"},[button("Cancelar",()=>{bg.remove();resolve(null);},{variant:"secondary"}),button("Salvar",()=>{const out={};let ok=true;campos.forEach(c=>{const v=inputs[c.key].value.trim();let err="";if(c.required&&!v)err="Preencha este campo.";if(!err&&c.validate&&!(c.skipValidationIfEmpty&&v==="")){const r=c.validate(v);if(r!==true)err=String(r||"Valor inválido.");}errors[c.key].textContent=err;if(err)ok=false;out[c.key]=v;});if(!ok){const first=body.querySelector(".field-error:not(:empty)");if(first)first.previousElementSibling?.focus();return;}bg.remove();resolve(out);})]));
-    bg.addEventListener("click",e=>{if(e.target===bg){bg.remove();resolve(null);}});document.body.append(form);setTimeout(()=>body.querySelector("input,select,textarea")?.focus(),50);});}
+    // O modal precisa ficar DENTRO de .modal-bg: é o overlay que escurece o fundo,
+    // centraliza o formulário e sustenta o clique-fora. Sem isso os handlers de
+    // fechar chamavam bg.remove() num elemento que nunca esteve no documento, e
+    // cada formulário aberto ficava empilhado no fim do body — inclusive roubando
+    // os cliques dos formulários seguintes.
+    form.addEventListener("submit",e=>e.preventDefault());
+    bg.append(form);
+    bg.addEventListener("click",e=>{if(e.target===bg){bg.remove();resolve(null);}});document.body.append(bg);setTimeout(()=>body.querySelector("input,select,textarea")?.focus(),50);});}
   function baixar(nome,texto,type="text/plain"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([texto],{type}));a.download=nome;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
   function iconButton(iconName,label,action,variant="secondary"){return el("button",{class:`icon-btn ${variant}`,type:"button",title:label,"aria-label":label,onclick:action},icon(iconName,label));}
   App.ui={el,clear,money,fmtData,initials,icon,button,toast,confirmar,modalForm,baixar,iconButton};

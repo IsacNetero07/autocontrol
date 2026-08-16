@@ -108,7 +108,7 @@ window.App = window.App || {};
     usuarios: {
       coll: "usuarios", titulo: "Usuários", grupo: "CONFIGURAÇÕES", descricao: "Controle de acessos locais.", singular: "Usuário", rotulo: "nome", adminOnly: true,
       buscaKeys: ["nome", "usuario", "nivel"], colunas: [{ key: "nome", label: "Nome" }, { key: "usuario", label: "Login" }, { key: "nivel", label: "Perfil" }],
-      campos: [{ key: "nome", label: "Nome", required: true }, { key: "usuario", label: "Login", required: true, validate: (v, rec) => !App.db.count("usuarios", u => Number(u.id)!==Number(rec?.id) && String(u.usuario||"").toLowerCase() === v.trim().toLowerCase()) || "Este login já está em uso." }, { key: "senha", label: "Senha", type: "password", requiredOnCreate: true, validate: v => v.length >= 6 || "A senha deve ter pelo menos 6 caracteres.", transform: App.auth.hashSenha }, { key: "nivel", label: "Perfil", type: "select", options: ["admin", "mecanico", "atendente"], required: true }]
+      campos: [{ key: "nome", label: "Nome", required: true }, { key: "usuario", label: "Login", required: true, validate: (v, rec) => !App.db.count("usuarios", u => Number(u.id)!==Number(rec?.id) && String(u.usuario||"").toLowerCase() === v.trim().toLowerCase()) || "Este login já está em uso." }, { key: "senha", label: "Senha", type: "password", requiredOnCreate: true, validate: v => App.auth.validarSenha(v) || true, transform: v => App.auth.criarHash(v) }, { key: "nivel", label: "Perfil", type: "select", options: ["admin", "mecanico", "atendente"], required: true }]
       ,antesDeExcluir: id => {
         const current = App.auth.atual();
         if (current && Number(current.id) === Number(id)) throw new Error("Você não pode excluir o usuário que está conectado.");
