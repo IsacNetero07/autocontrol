@@ -2,6 +2,33 @@
 
 Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
+## [2.7.0] — 2026-08-16
+
+### Corrigido
+
+- Exportação CSV perdia colunas. O cabeçalho vinha de `Object.keys(rows[0])`,
+  então um registro salvo com menos campos — se caísse em primeiro — apagava
+  aquelas colunas para todas as linhas. Agora usa a união das chaves.
+- Células de CSV começando com `=`, `+`, `-` ou `@` eram gravadas cruas, e
+  Excel e Google Sheets as executam como fórmula ao abrir o arquivo. Passam a
+  ser prefixadas com aspa simples, sem alterar o texto exibido.
+- Rollback de `update()` não cobria campos aninhados. O snapshot era uma cópia
+  rasa, então uma falha de gravação deixava arrays e objetos internos (fotos,
+  timeline, checklist) com a alteração aplicada em memória mesmo depois do
+  "desfazer".
+
+### Alterado
+
+- `js/db.js` virou uma camada de dados de verdade: `all()`, `byId()` e
+  `where()` devolvem cópias, e `insert()`/`update()` copiam o que recebem.
+  Antes as consultas entregavam a referência viva do store — mexer no objeto
+  retornado alterava a memória sem gravar no disco, e os dois divergiam em
+  silêncio até o próximo reload. Agora o único caminho de escrita é `update()`.
+  Isso também isola o `localStorage` num arquivo só: trocar por IndexedDB ou
+  por uma API remota passa a significar reescrever apenas `js/db.js`.
+- `App.ui` ganhou `csv()`, `csvCelula()` e `chavesDe()`, usados pelas duas
+  telas que exportam, que antes duplicavam a montagem do arquivo.
+
 ## [2.6.0] — 2026-08-16
 
 ### Segurança
@@ -19,6 +46,12 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 
 ### Corrigido
 
+- Formulário de cadastro não fechava e roubava cliques. `modalForm` anexava ao
+  body o `<form>` em vez do overlay `.modal-bg`, então o formulário ficava sem
+  fundo escurecido nem centralização, os botões Fechar/Cancelar/Salvar chamavam
+  `remove()` num elemento que nunca esteve no documento, e cada abertura
+  empilhava outro formulário — os antigos continuavam clicáveis e podiam engolir
+  o clique em Salvar sem gravar nada. Afetava todos os cadastros.
 - Checklist de inspeção da OS não respondia ao clique. `render()` do detalhe da
   OS não limpava o container antes de redesenhar, então cada ação empilhava
   outra cópia inteira da tela abaixo da anterior — e a cópia antiga,
