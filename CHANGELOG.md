@@ -17,6 +17,15 @@ Formato baseado em [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/).
 - Sem WebCrypto (`file://`), o app avisa no console em vez de rebaixar o hash
   em silêncio, e reporta o estado em *Central de Operações → Diagnóstico*.
 
+### Corrigido
+
+- Checklist de inspeção da OS não respondia ao clique. `render()` do detalhe da
+  OS não limpava o container antes de redesenhar, então cada ação empilhava
+  outra cópia inteira da tela abaixo da anterior — e a cópia antiga,
+  desatualizada, continuava visível no topo. O clique salvava o estado, mas a
+  tela parecia inerte. Afetava também os botões de progresso, o envio de fotos
+  e a edição da OS.
+
 ### Adicionado
 
 - `package.json` com scripts de teste e servidor de desenvolvimento.

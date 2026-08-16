@@ -121,7 +121,44 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
   assert.strictEqual(falhas, 0, `${falhas} rota(s) com erro`);
   console.log("ok  " + rotas.length + " rotas renderizadas sem erro");
 
-  // ---- 6. com usuario cadastrado, vai para o login -----------------------
+  // ---- 6. detalhe da OS: acoes nao podem duplicar a tela -----------------
+  {
+    const os = dom.window.App.db.all("ordens")[0];
+    dom.window.location.hash = "#/os/" + os.id;
+    dom.window.__renderRoute();
+    await esperar(60);
+
+    const conta = (sel) => doc.querySelectorAll(sel).length;
+    assert.strictEqual(conta(".check-grid"), 1, "deveria haver um unico checklist");
+
+    // marca o primeiro item do checklist
+    const antes = doc.querySelectorAll(".check-item")[0];
+    const rotulo = antes.textContent;
+    antes.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    await esperar(60);
+
+    assert.strictEqual(conta(".check-grid"), 1,
+      `clicar no checklist duplicou a tela: ${conta(".check-grid")} checklists, ${conta(".big-progress")} barras de progresso`);
+    const depois = [...doc.querySelectorAll(".check-item")].find((x) => x.textContent === rotulo);
+    assert(depois.classList.contains("checked"), "o item deveria ficar marcado na tela");
+    assert(dom.window.App.db.byId("ordens", os.id).checklist[rotulo.trim()], "e persistido");
+
+    // desmarcar volta ao estado anterior
+    depois.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    await esperar(60);
+    assert.strictEqual(conta(".check-grid"), 1, "desmarcar tambem nao pode duplicar");
+    assert(![...doc.querySelectorAll(".check-item")].find((x) => x.textContent === rotulo).classList.contains("checked"),
+      "o item deveria desmarcar");
+
+    // botoes de progresso re-renderizam do mesmo jeito
+    doc.querySelectorAll(".progress-btn")[2].dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    await esperar(60);
+    assert.strictEqual(conta(".big-progress"), 1, "botao de progresso duplicou a tela");
+    assert.strictEqual(dom.window.App.db.byId("ordens", os.id).progresso, 50, "progresso salvo");
+    console.log("ok  checklist e progresso da OS atualizam sem duplicar a tela");
+  }
+
+  // ---- 7. com usuario cadastrado, vai para o login -----------------------
   const dump = dom.window.localStorage.getItem("autocontrol:v1");
   dom = novoDom();
   dom.window.localStorage.setItem("autocontrol:v1", dump);

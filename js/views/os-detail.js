@@ -2,6 +2,11 @@ window.App=window.App||{};App.views=App.views||{};
 (function(){
  const el=App.ui.el,icon=App.ui.icon;
  function render(c,id){
+  // O roteador limpa o container antes da primeira renderização, mas checklist,
+  // progresso, fotos e edição chamam render() de novo para refletir a mudança.
+  // Sem limpar aqui, cada ação empilhava outra cópia inteira da OS abaixo da
+  // anterior — e a cópia antiga, desatualizada, continuava visível no topo.
+  App.ui.clear(c);
   const o=App.db.byId("ordens",id);
   if(!o){App.ui.toast("Ordem de serviço não encontrada.","error");location.hash="#/patio";return;}
   const H=App.helpers, client=App.db.byId("clientes",o.cliente_id), car=App.db.byId("veiculos",o.veiculo_id);
