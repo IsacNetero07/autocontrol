@@ -216,7 +216,58 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
     console.log("ok  CSV neutraliza formula, escapa aspas e usa a uniao das colunas");
   }
 
-  // ---- 9. com usuario cadastrado, vai para o login -----------------------
+  // ---- 9. grafico do dashboard vem dos dados, nao e decoracao -----------
+  {
+    const db = dom.window.App.db;
+    // limpa o financeiro e planta valores conhecidos no mes corrente
+    db.all("financeiro").forEach((f) => db.remove("financeiro", f.id));
+    const mes = new Date().toISOString().slice(0, 7);
+    db.insert("financeiro", { descricao: "R1", tipo: "Receita", valor: 1000, data: `${mes}-05` });
+    db.insert("financeiro", { descricao: "R2", tipo: "Receita", valor: 500, data: `${mes}-06` });
+    db.insert("financeiro", { descricao: "D1", tipo: "Despesa", valor: 750, data: `${mes}-07` });
+
+    dom.window.location.hash = "#/dashboard";
+    dom.window.__renderRoute();
+    await esperar(80);
+
+    assert.strictEqual(doc.querySelectorAll(".fake-chart").length, 0, "a decoracao antiga nao pode voltar");
+    const svg = doc.querySelector("svg.chart");
+    assert(svg, "o painel deveria conter um svg de grafico");
+    assert.strictEqual(svg.querySelectorAll(".chart-col").length, 6, "6 meses no eixo");
+
+    const barras = [...svg.querySelectorAll("path.chart-bar")];
+    assert(barras.length >= 2, "deveria desenhar barras de receita e despesa");
+    for (const b of barras) {
+      const d = b.getAttribute("d");
+      assert(!/NaN|Infinity|undefined/.test(d), `geometria invalida: ${d}`);
+    }
+    // o mes corrente e o ultimo: receitas 1500 (1000+500) x despesas 750
+    const ultimoMes = [...svg.querySelectorAll(".chart-col")].pop();
+    const receita = ultimoMes.querySelector('[data-serie="receita"]');
+    const despesa = ultimoMes.querySelector('[data-serie="despesa"]');
+    assert.strictEqual(receita.getAttribute("data-valor"), "1500", "receitas somadas do mes");
+    assert.strictEqual(despesa.getAttribute("data-valor"), "750", "despesas do mes");
+    const alt = (p) => Number(p.getAttribute("data-altura"));
+    assert(alt(receita) > alt(despesa), "receita deve superar despesa em altura");
+    assert(Math.abs(alt(receita) / alt(despesa) - 2) < 0.01, `altura deve seguir a proporcao 2:1, veio ${alt(receita)}/${alt(despesa)}`);
+    // barras dentro da area de plotagem
+    for (const b of barras) assert(alt(b) >= 0 && alt(b) <= 156, `barra fora da area util: ${alt(b)}`);
+
+    // tooltip nomeia as series (identidade nao depende so da cor)
+    const titulo = ultimoMes.querySelector("title").textContent;
+    assert(/Receitas:/.test(titulo) && /Despesas:/.test(titulo), "tooltip deve nomear as series");
+    assert.strictEqual(doc.querySelectorAll(".chart-legend span").length, 2, "legenda com as duas series");
+
+    // sem lancamentos, mostra estado vazio em vez de eixo quebrado
+    db.all("financeiro").forEach((f) => db.remove("financeiro", f.id));
+    dom.window.__renderRoute();
+    await esperar(60);
+    assert(doc.querySelector(".chart-empty"), "sem dados deve aparecer estado vazio");
+    assert.strictEqual(doc.querySelectorAll("path.chart-bar").length, 0, "e nenhuma barra");
+    console.log("ok  grafico financeiro renderiza a partir dos dados, com estado vazio");
+  }
+
+  // ---- 10. com usuario cadastrado, vai para o login ----------------------
   const dump = dom.window.localStorage.getItem("autocontrol:v1");
   dom = novoDom();
   dom.window.localStorage.setItem("autocontrol:v1", dump);
