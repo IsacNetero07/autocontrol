@@ -189,7 +189,34 @@ const esperar = (ms) => new Promise((r) => setTimeout(r, ms));
     console.log("ok  formulario modal abre com overlay, fecha em Cancelar/Salvar e persiste");
   }
 
-  // ---- 8. com usuario cadastrado, vai para o login -----------------------
+  // ---- 8. exportacao CSV: injecao de formula e uniao de colunas ----------
+  {
+    const ui = dom.window.App.ui;
+
+    // Excel/Sheets executam celulas que comecam com = + - @
+    for (const perigoso of ["=1+1", "+cmd", "-2+3", "@SUM(A1)"]) {
+      const saida = ui.csvCelula(perigoso);
+      assert(saida.startsWith(`"'`), `celula perigosa nao neutralizada: ${perigoso} -> ${saida}`);
+      assert(saida.includes(perigoso), "o texto original precisa continuar legivel");
+    }
+    assert.strictEqual(ui.csvCelula("Joao Silva"), '"Joao Silva"', "texto normal nao ganha prefixo");
+    assert.strictEqual(ui.csvCelula('a "b" c'), '"a ""b"" c"', "aspas continuam escapadas");
+    assert.strictEqual(ui.csvCelula(null), '""', "nulo vira vazio");
+
+    // cabecalho e a uniao das chaves, nao as do primeiro registro
+    const registros = [{ nome: "So nome", id: 1 }, { nome: "Completo", cpf: "x", email: "y", id: 2 }];
+    // Array.from: o retorno vem do realm do jsdom, e deepStrictEqual compara protótipos.
+    assert.deepStrictEqual(Array.from(ui.chavesDe(registros)), ["nome", "id", "cpf", "email"],
+      "colunas de registros posteriores nao podem sumir");
+    assert.deepStrictEqual(Array.from(ui.chavesDe(registros, ["id"])), ["nome", "cpf", "email"], "ignora as chaves pedidas");
+
+    const texto = ui.csv([["a", "b"], [1, "=2"]]);
+    assert(texto.startsWith("﻿"), "BOM na frente para o Excel ler UTF-8");
+    assert(texto.includes("\r\n"), "quebra de linha CRLF");
+    console.log("ok  CSV neutraliza formula, escapa aspas e usa a uniao das colunas");
+  }
+
+  // ---- 9. com usuario cadastrado, vai para o login -----------------------
   const dump = dom.window.localStorage.getItem("autocontrol:v1");
   dom = novoDom();
   dom.window.localStorage.setItem("autocontrol:v1", dump);

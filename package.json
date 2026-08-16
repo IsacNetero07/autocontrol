@@ -1,6 +1,6 @@
 {
   "name": "autocontrol",
-  "version": "2.6.0",
+  "version": "2.7.0",
   "description": "PWA de gestão para oficinas mecânicas — clientes, veículos, ordens de serviço, estoque e financeiro.",
   "private": true,
   "license": "MIT",
