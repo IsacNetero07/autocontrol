@@ -1,4 +1,4 @@
-const CACHE = "autocontrol-blue-v6";
+const CACHE = "autocontrol-v7";
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest", "./css/styles.css",
   "./js/validation.js", "./js/db.js", "./js/auth.js", "./js/seed.js", "./js/ui.js",
