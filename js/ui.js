@@ -63,7 +63,17 @@ window.App=window.App||{};
     form.addEventListener("submit",e=>e.preventDefault());
     bg.append(form);
     bg.addEventListener("click",e=>{if(e.target===bg){bg.remove();resolve(null);}});document.body.append(bg);setTimeout(()=>body.querySelector("input,select,textarea")?.focus(),50);});}
+  // Excel e Google Sheets executam como fórmula qualquer célula que comece com
+  // = + - @ (ou tab/CR). Um cliente cadastrado como "=1+1" viraria conta, e a
+  // planilha aberta por terceiros vira vetor de execução. Prefixar com aspa
+  // simples neutraliza sem alterar o que a pessoa lê.
+  function csvCelula(v){const s=String(v==null?"":v);const risco=/^[=+\-@\t\r]/.test(s);return `"${(risco?"'":"")+s.replace(/"/g,'""')}"`;}
+  // BOM na frente para o Excel abrir UTF-8 corretamente.
+  function csv(linhas){return "\uFEFF"+linhas.map(l=>l.map(csvCelula).join(";")).join("\r\n");}
+  // União das chaves de todos os registros: usar só as do primeiro faz sumir
+  // colunas quando um registro foi salvo com menos campos que os demais.
+  function chavesDe(registros,ignorar=[]){const vistas=[];registros.forEach(r=>Object.keys(r).forEach(k=>{if(!vistas.includes(k)&&!ignorar.includes(k))vistas.push(k);}));return vistas;}
   function baixar(nome,texto,type="text/plain"){const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([texto],{type}));a.download=nome;document.body.append(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1000);}
   function iconButton(iconName,label,action,variant="secondary"){return el("button",{class:`icon-btn ${variant}`,type:"button",title:label,"aria-label":label,onclick:action},icon(iconName,label));}
-  App.ui={el,clear,money,fmtData,initials,icon,button,toast,confirmar,modalForm,baixar,iconButton};
+  App.ui={el,clear,money,fmtData,initials,icon,button,toast,confirmar,modalForm,baixar,iconButton,csv,csvCelula,chavesDe};
 })();
