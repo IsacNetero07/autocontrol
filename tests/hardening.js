@@ -44,6 +44,64 @@ const { criarContexto, comAdmin } = require("./context");
     assert(ctx.App.db.byId("clientes", id), "registro deve continuar apos falha");
   }
 
+  // --- leitura devolve cópia, nunca a referência viva ---------------------
+  {
+    const { ctx } = criarContexto();
+    ctx.App.seed.demo();
+    const a = ctx.App.db.byId("clientes", 1);
+    const b = ctx.App.db.byId("clientes", 1);
+    assert.notStrictEqual(a, b, "byId nao pode devolver a mesma referencia duas vezes");
+    assert.deepStrictEqual(a, b, "mas o conteudo deve ser igual");
+
+    a.nome = "MUTADO POR FORA";
+    assert.notStrictEqual(ctx.App.db.byId("clientes", 1).nome, "MUTADO POR FORA",
+      "mutar o objeto retornado nao pode afetar o store");
+    assert.notStrictEqual(ctx.App.db.all("clientes")[0].nome, "MUTADO POR FORA");
+
+    // o mesmo vale para all() e where()
+    ctx.App.db.all("clientes")[0].nome = "MUTADO VIA ALL";
+    ctx.App.db.where("clientes", () => true)[0].nome = "MUTADO VIA WHERE";
+    const atual = ctx.App.db.byId("clientes", 1).nome;
+    assert(!/MUTADO/.test(atual), `store contaminado por leitura: ${atual}`);
+  }
+
+  // --- insert/update não guardam a referência de quem chamou --------------
+  {
+    const { ctx } = criarContexto();
+    const entrada = { nome: "Cliente", tags: ["a"] };
+    const criado = ctx.App.db.insert("clientes", entrada);
+    entrada.tags.push("b"); // mexer no objeto original depois de inserir
+    assert.deepStrictEqual(ctx.App.db.byId("clientes", criado.id).tags, ["a"],
+      "insert deve copiar o objeto recebido");
+
+    const patch = { tags: ["x"] };
+    ctx.App.db.update("clientes", criado.id, patch);
+    patch.tags.push("y");
+    assert.deepStrictEqual(ctx.App.db.byId("clientes", criado.id).tags, ["x"],
+      "update deve copiar o patch recebido");
+  }
+
+  // --- rollback cobre campos aninhados (fotos, timeline, checklist) -------
+  {
+    const { ctx, setFail } = await comAdmin();
+    ctx.App.seed.demo();
+    const id = ctx.App.db.all("ordens")[0].id;
+    ctx.App.db.update("ordens", id, { fotos: [], checklist: { Pneus: true } });
+
+    // padrão usado em os-detail.js: ler, mexer no array, mandar de volta
+    const os = ctx.App.db.byId("ordens", id);
+    os.fotos.push("foto-nova");
+    os.checklist.Freios = true;
+    setFail(true);
+    assert.strictEqual(ctx.App.db.update("ordens", id, { fotos: os.fotos, checklist: os.checklist }), null,
+      "update deve falhar quando o storage recusa");
+    setFail(false);
+
+    const depois = ctx.App.db.byId("ordens", id);
+    assert.deepStrictEqual(depois.fotos, [], "rollback tem que desfazer o array aninhado");
+    assert.deepStrictEqual(depois.checklist, { Pneus: true }, "e o objeto aninhado");
+  }
+
   // --- validação CPF/CNPJ --------------------------------------------------
   {
     const { ctx } = criarContexto();
