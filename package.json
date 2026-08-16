@@ -1,0 +1,22 @@
+{
+  "name": "autocontrol",
+  "version": "2.6.0",
+  "description": "PWA de gestão para oficinas mecânicas — clientes, veículos, ordens de serviço, estoque e financeiro.",
+  "private": true,
+  "license": "MIT",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node tests/serve.js",
+    "test": "node tests/run-all.js",
+    "test:core": "node tests/core-smoke.js",
+    "test:hardening": "node tests/hardening.js",
+    "test:dom": "node tests/dom-flow.js",
+    "check": "node tests/syntax-check.js"
+  },
+  "devDependencies": {
+    "jsdom": "^24.1.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
